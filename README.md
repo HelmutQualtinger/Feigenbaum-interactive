@@ -2,6 +2,8 @@
 
 An interactive web application exploring the **Feigenbaum bifurcation** and chaotic dynamics of the logistic map.
 
+![Feigenbaum Bifurcation Visualization](screenshot.png)
+
 ## 🎯 Overview
 
 This tool visualizes the fascinating transition from stable behavior to chaos in the logistic map equation:
