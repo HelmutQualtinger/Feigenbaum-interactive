@@ -18,25 +18,17 @@ As you adjust the parameter `r` using the slider, you'll see how the system's be
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.13+
-- pip or uv package manager
+### Option 1: Pure HTML/JavaScript (No Server Required)
 
-### Installation
+Simply open **`index.html`** directly in your web browser. That's it! The entire application runs client-side with no installation or server needed.
+
+### Option 2: Python Web App (Interactive Server)
 
 ```bash
-# Clone or navigate to the repository
-cd Feigenbaum
-
 # Install dependencies
 pip install -r requirements.txt
-# or with uv:
-uv sync
-```
 
-### Run the App
-
-```bash
+# Run the server
 python3 app.py
 ```
 
@@ -118,10 +110,18 @@ This constant appears in **many chaotic systems** across physics, biology, and e
 
 ## 🏗️ Architecture
 
-- **Frontend**: Dash (Python framework for interactive web apps)
-- **Plots**: Plotly (interactive visualization)
+### Pure HTML/JavaScript Version (`index.html`)
+- **Frontend**: Vanilla JavaScript (no build tools required)
+- **Plots**: Plotly.js (from CDN)
+- **Math**: Pure JavaScript computation
+- **Performance**: Feigenbaum diagram computed on page load (~5 seconds), cobweb plots cached on demand
+- **Size**: ~14 KB HTML (can be opened from anywhere, no server needed)
+
+### Python/Dash Version (`app.py`)
+- **Frontend**: Dash (Python interactive framework)
+- **Plots**: Plotly (server-side visualization)
 - **Math**: NumPy (numerical computation)
-- **Performance**: Feigenbaum diagram pre-computed at startup for responsive slider
+- **Performance**: Pre-computed Feigenbaum diagram for responsive interactions
 
 See `CLAUDE.md` for technical architecture details.
 
