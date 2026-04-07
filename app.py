@@ -6,7 +6,7 @@ import numpy as np
 
 app = dash.Dash(__name__)
 
-# Pre-calculate Feigenbaum diagram
+# Pre-calculate Feigenbaum diagram (once at startup)
 r_values_feig = np.linspace(0.0, 4.0, 500)
 feigenbaum_x_cached = []
 feigenbaum_y_cached = []
@@ -19,6 +19,27 @@ for r_val in r_values_feig:
         x = r_val * x * (1 - x)
         feigenbaum_x_cached.append(r_val)
         feigenbaum_y_cached.append(x)
+
+# Create Feigenbaum figure once at startup (static, doesn't change)
+feigenbaum_fig_base = go.Figure()
+feigenbaum_fig_base.add_trace(go.Scatter(
+    x=feigenbaum_x_cached, y=feigenbaum_y_cached,
+    mode='markers', name='Feigenbaum',
+    marker=dict(size=2, color='steelblue'), showlegend=False
+))
+feigenbaum_fig_base.add_trace(go.Scatter(
+    x=[2.8, 2.8], y=[0, 1],
+    mode='lines', name='Aktuelles r',
+    line=dict(color='red', width=2, dash='dash'), showlegend=False
+))
+feigenbaum_fig_base.update_xaxes(range=[0.0, 4.0], title_text="r")
+feigenbaum_fig_base.update_yaxes(range=[0, 1], title_text="Attraktor")
+feigenbaum_fig_base.update_layout(
+    template="plotly_white",
+    height=700,
+    margin=dict(l=80, r=80, t=40, b=50),
+    showlegend=False
+)
 
 app.layout = html.Div([
     html.H2("Logistische Gleichung: X", style={'marginBottom': '10px', 'marginLeft': '10px', 'display': 'inline'}),
@@ -60,7 +81,7 @@ def update_graphs(r):
     y_val = r * x_val * (1 - x_val)
 
     # Iterationen berechnen für zwei verschiedene Startpunkte
-    iterations = 50
+    iterations = 100
     iterations_long = 100
     x_start_red = 0.05
     x_start_blue = 0.90
@@ -148,17 +169,23 @@ def update_graphs(r):
         line=dict(color='blue', width=2), marker=dict(size=3), showlegend=False
     ), row=2, col=1)
 
-    # Animation Frames für Cobweb-Diagramm
+    # Animation Frames für Cobweb-Diagramm und Xn-Folge
     frames = []
-    max_cobweb_points = iterations * 1
+    max_cobweb_points = iterations * 3  # 3 points per iteration (vertical, diagonal, point on curve)
     cobweb_step = max(1, max_cobweb_points // 50)
 
     for i in range(cobweb_step, min(max_cobweb_points, max(len(cobweb_x_red), len(cobweb_x_blue))), cobweb_step):
-        frame_red = go.Scatter(x=cobweb_x_red[:i], y=cobweb_y_red[:i])
-        frame_blue = go.Scatter(x=cobweb_x_blue[:i], y=cobweb_y_blue[:i])
+        frame_red_cobweb = go.Scatter(x=cobweb_x_red[:i], y=cobweb_y_red[:i])
+        frame_blue_cobweb = go.Scatter(x=cobweb_x_blue[:i], y=cobweb_y_blue[:i])
+
+        # Calculate sequence frame index based on cobweb points (3 points per iteration)
+        seq_idx = min(i // 3, len(sequence_red) - 1)
+        frame_red_seq = go.Scatter(x=list(range(seq_idx + 1)), y=sequence_red[:seq_idx + 1])
+        frame_blue_seq = go.Scatter(x=list(range(seq_idx + 1)), y=sequence_blue[:seq_idx + 1])
+
         frames.append(go.Frame(
-            data=[frame_red, frame_blue],
-            traces=[2, 3]
+            data=[frame_red_cobweb, frame_blue_cobweb, frame_red_seq, frame_blue_seq],
+            traces=[2, 3, 4, 5]
         ))
 
     fig_left.frames = frames
@@ -178,40 +205,15 @@ def update_graphs(r):
             "buttons": [{
                 "label": "Play",
                 "method": "animate",
-                "args": [None, {"frame": {"duration": 50, "redraw": False}, "fromcurrent": True}]
+                "args": [None, {"frame": {"duration": 200, "redraw": False}, "fromcurrent": True}]
             }]
         }]
     )
 
-    # === RECHTER PLOT: Feigenbaum ===
-    fig_right = go.Figure()
-
-    # Feigenbaum-Diagramm aus Cache
-    fig_right.add_trace(go.Scatter(
-        x=feigenbaum_x_cached, y=feigenbaum_y_cached,
-        mode='markers', name='Feigenbaum',
-        marker=dict(size=2, color='steelblue'), showlegend=False
-    ))
-
-    # Rote vertikale Linie für aktuelles r
-    fig_right.add_trace(go.Scatter(
-        x=[r, r], y=[0, 1],
-        mode='lines', name='Aktuelles r',
-        line=dict(color='red', width=2, dash='dash'), showlegend=False
-    ))
-
-    fig_right.update_xaxes(range=[0.0, 4.0], title_text="r")
-    fig_right.update_yaxes(range=[0, 1], title_text="Attraktor")
-    fig_right.update_layout(
-        template="plotly_white",
-        height=700,
-        margin=dict(l=80, r=80, t=40, b=50),
-        showlegend=False,
-        xaxis=dict(
-            scaleanchor="x2",
-            scaleratio=1
-        )
-    )
+    # === RECHTER PLOT: Feigenbaum (only update red line) ===
+    # Copy cached base figure and update only the red line position
+    fig_right = go.Figure(feigenbaum_fig_base)
+    fig_right.data[1].x = [r, r]  # Update red line x-coordinates
 
     return fig_left, fig_right
 
