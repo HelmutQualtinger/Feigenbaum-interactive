@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (Clause.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -107,6 +107,7 @@ The UI is a **two-column layout**:
 ### JavaScript/HTML Version (`index.html`)
 
 **Modifying computation:**
+
 - **Feigenbaum resolution**: Edit `CONFIG.r_steps` (higher = more detail, slower startup)
 - **Transient iterations**: Edit `CONFIG.transient_iterations` (higher = more stable)
 - **Attractor points**: Edit `CONFIG.attractor_points` (higher = denser bifurcation diagram)
@@ -114,18 +115,21 @@ The UI is a **two-column layout**:
 - **Animation speed**: Edit `CONFIG.animation_frame_duration` (milliseconds per frame)
 
 **Modifying visualization:**
+
 - **Colors**: Change `color: 'red'`, `'blue'`, `'green'` in trace definitions (~line 270-300)
 - **Plot heights**: Edit `height: 480` in layout (~line 380, 415)
 - **Font sizes**: Search for `titlefont: { size: 10 }` in layout definitions
 
 **Theme:**
+
 - **Color scheme**: Update CSS variables in `<style>` tag (dark blue `#2c3e50`, light background `#f8f9fa`)
 - **Typography**: Change `font-family: 'Georgia'` for different fonts
 - **Spacing**: Edit `padding`, `margin`, `gap` in CSS
 
-### Python/Dash Version (`app.py`)
+### Python/Dash Version - Development Tasks
 
 **Modifying the visualization:**
+
 - **Change iteration counts**: See lines 84-85 (`iterations` for cobweb, `iterations_long` for sequence)
 - **Adjust Feigenbaum resolution**: Change 500 in line 10 (r-steps) or 100 in lines 18 (attractors per r)
 - **Change starting points**: Lines 86-87 (red/blue starting values)
@@ -134,17 +138,20 @@ The UI is a **two-column layout**:
 **Performance tuning:**
 
 The biggest bottleneck in both versions is **Feigenbaum pre-calculation**. For faster startup:
+
 - Reduce `r_steps` from 500 to fewer (e.g., 300)
 - Reduce `attractor_points` from 100 to fewer (e.g., 50)
 
 ## Dependencies
 
 ### JavaScript/HTML Version
-- **Plotly.js** - Loaded from CDN (https://cdn.plot.ly/plotly-latest.min.js)
+
+- **Plotly.js** - Loaded from CDN (<https://cdn.plot.ly/plotly-latest.min.js>)
 - No build tools or npm packages required
 - Works with just a modern web browser (Chrome, Firefox, Safari, Edge)
 
 ### Python/Dash Version
+
 
 - **dash**: Web framework and interactive callbacks
 - **plotly**: Graph rendering (via `go.Figure` and `make_subplots`)
