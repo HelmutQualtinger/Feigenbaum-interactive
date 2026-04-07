@@ -11,6 +11,7 @@ This tool visualizes the fascinating transition from stable behavior to chaos in
 $$X_{n+1} = r \cdot X_n \cdot (1 - X_n)$$
 
 where:
+
 - **Xₙ** is the population at iteration n (0 to 1)
 - **r** is the growth rate parameter (0 to 4)
 

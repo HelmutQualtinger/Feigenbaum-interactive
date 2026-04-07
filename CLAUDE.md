@@ -145,6 +145,7 @@ The biggest bottleneck in both versions is **Feigenbaum pre-calculation**. For f
 - Works with just a modern web browser (Chrome, Firefox, Safari, Edge)
 
 ### Python/Dash Version
+
 - **dash**: Web framework and interactive callbacks
 - **plotly**: Graph rendering (via `go.Figure` and `make_subplots`)
 - **numpy**: Numerical arrays and calculations
