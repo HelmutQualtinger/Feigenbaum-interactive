@@ -8,7 +8,6 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import json
-import base64
 
 # Pre-calculate Feigenbaum diagram
 print("Calculating Feigenbaum diagram...")
