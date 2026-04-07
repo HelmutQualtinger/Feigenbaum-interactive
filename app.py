@@ -3,6 +3,7 @@ from dash import dcc, html, Input, Output
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+import copy
 
 app = dash.Dash(__name__)
 
@@ -211,8 +212,8 @@ def update_graphs(r):
     )
 
     # === RECHTER PLOT: Feigenbaum (only update red line) ===
-    # Copy cached base figure and update only the red line position
-    fig_right = go.Figure(feigenbaum_fig_base)
+    # Deep copy to avoid mutating the cached base figure (prevents race conditions in multi-user setups)
+    fig_right = copy.deepcopy(feigenbaum_fig_base)
     fig_right.data[1].x = [r, r]  # Update red line x-coordinates
 
     return fig_left, fig_right
