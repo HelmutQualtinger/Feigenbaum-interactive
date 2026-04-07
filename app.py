@@ -13,9 +13,9 @@ feigenbaum_y_cached = []
 
 for r_val in r_values_feig:
     x = 0.1
-    for _ in range(100):
+    for _ in range(500):  # Transient verwerfen
         x = r_val * x * (1 - x)
-    for _ in range(100):
+    for _ in range(100):  # 100 Punkte pro r-Wert sammeln
         x = r_val * x * (1 - x)
         feigenbaum_x_cached.append(r_val)
         feigenbaum_y_cached.append(x)
