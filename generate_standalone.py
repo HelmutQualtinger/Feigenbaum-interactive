@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate a standalone, interactive HTML file for the Feigenbaum bifurcation diagram.
-No server required - opens directly in browser.
+No server required - opens directly in browser with client-side animation.
 """
 
 import numpy as np
@@ -40,7 +40,7 @@ feigenbaum_fig.update_layout(
     showlegend=False
 )
 
-# Generate cobweb plots for all slider positions
+# Generate cobweb plots for all slider positions (no embedded frames to keep size small)
 print("Generating cobweb plots for all r values...")
 r_slider_values = np.arange(0.0, 4.01, 0.01)
 cobweb_data = {}
@@ -96,54 +96,20 @@ for i, r in enumerate(r_slider_values):
         current_x = r * current_x * (1 - current_x)
     sequence_blue.append(current_x)
 
-    # Create figure for this r value
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=("Cobweb-Diagramm", "Xn-Folge (bis 100)"),
-        vertical_spacing=0.1,
-        row_heights=[0.5, 0.5]
-    )
+    # Store raw data for this r (used for client-side animation)
+    cobweb_data[f"{r:.2f}"] = {
+        "r": r,
+        "x_func": x_val.tolist(),
+        "y_func": y_val.tolist(),
+        "cobweb_x_red": cobweb_x_red,
+        "cobweb_y_red": cobweb_y_red,
+        "cobweb_x_blue": cobweb_x_blue,
+        "cobweb_y_blue": cobweb_y_blue,
+        "sequence_red": sequence_red,
+        "sequence_blue": sequence_blue
+    }
 
-    fig.add_trace(go.Scatter(x=x_val, y=y_val, mode='lines', name='f(x) = r*x(1-x)',
-                        line=dict(color='green'), showlegend=True), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='y = x',
-                        line=dict(color='black', dash='dash'), showlegend=True), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=cobweb_x_red, y=cobweb_y_red,
-        mode='lines+markers', name='Start: 0.05',
-        line=dict(color='red', width=1), marker=dict(size=4)
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=cobweb_x_blue, y=cobweb_y_blue,
-        mode='lines+markers', name='Start: 0.90',
-        line=dict(color='blue', width=1), marker=dict(size=4)
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=list(range(len(sequence_red))), y=sequence_red,
-        mode='lines+markers', name='Start: 0.05',
-        line=dict(color='red', width=2), marker=dict(size=3), showlegend=False
-    ), row=2, col=1)
-    fig.add_trace(go.Scatter(
-        x=list(range(len(sequence_blue))), y=sequence_blue,
-        mode='lines+markers', name='Start: 0.90',
-        line=dict(color='blue', width=2), marker=dict(size=3), showlegend=False
-    ), row=2, col=1)
-
-    fig.update_xaxes(range=[0, 1], title_text="Xn", row=1, col=1)
-    fig.update_yaxes(range=[0, 1], title_text="Xn+1", row=1, col=1)
-    fig.update_xaxes(range=[0, 100], title_text="Iteration", row=2, col=1)
-    fig.update_yaxes(range=[0, 1], title_text="Xn", row=2, col=1)
-
-    fig.update_layout(
-        template="plotly_white",
-        height=700,
-        showlegend=True,
-        margin=dict(l=50, r=20, t=60, b=50),
-    )
-
-    cobweb_data[f"{r:.2f}"] = fig.to_json()
-
-# Create HTML
+# Create HTML with client-side animation
 html_content = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -174,12 +140,29 @@ html_content = f"""<!DOCTYPE html>
         }}
         .left-column {{
             width: 48%;
+            position: relative;
         }}
         .right-column {{
             width: 50%;
         }}
         #cobweb-plot, #feigenbaum-plot {{
             width: 100%;
+        }}
+        .play-button {{
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+        }}
+        .play-button:hover {{
+            background: #45a049;
         }}
         .slider-container {{
             padding: 0 30px 15px 30px;
@@ -228,6 +211,7 @@ html_content = f"""<!DOCTYPE html>
 
         <div class="layout">
             <div class="left-column">
+                <button class="play-button" onclick="playAnimation()">Play</button>
                 <div id="cobweb-plot"></div>
             </div>
 
@@ -249,24 +233,100 @@ html_content = f"""<!DOCTYPE html>
         // Cobweb data for all r values
         const cobweb_data = {json.dumps(cobweb_data)};
 
-        // Current red line position
         let current_r = 2.80;
+        let isAnimating = false;
 
-        // Initialize plots
+        // Create figure for current r value
+        function createCobwebFigure(data) {{
+            const fig = {{
+                data: [
+                    {{
+                        x: data.x_func,
+                        y: data.y_func,
+                        mode: 'lines',
+                        name: 'f(x) = r*x(1-x)',
+                        line: {{ color: 'green' }},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    }},
+                    {{
+                        x: [0, 1],
+                        y: [0, 1],
+                        mode: 'lines',
+                        name: 'y = x',
+                        line: {{ color: 'black', dash: 'dash' }},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    }},
+                    {{
+                        x: data.cobweb_x_red,
+                        y: data.cobweb_y_red,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.05',
+                        line: {{ color: 'red', width: 1 }},
+                        marker: {{ size: 4 }},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    }},
+                    {{
+                        x: data.cobweb_x_blue,
+                        y: data.cobweb_y_blue,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.90',
+                        line: {{ color: 'blue', width: 1 }},
+                        marker: {{ size: 4 }},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    }},
+                    {{
+                        x: Array.from({{length: data.sequence_red.length}}, (_, i) => i),
+                        y: data.sequence_red,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.05',
+                        line: {{ color: 'red', width: 2 }},
+                        marker: {{ size: 3 }},
+                        showlegend: false,
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    }},
+                    {{
+                        x: Array.from({{length: data.sequence_blue.length}}, (_, i) => i),
+                        y: data.sequence_blue,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.90',
+                        line: {{ color: 'blue', width: 2 }},
+                        marker: {{ size: 3 }},
+                        showlegend: false,
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    }}
+                ],
+                layout: {{
+                    template: 'plotly_white',
+                    height: 700,
+                    showlegend: true,
+                    margin: {{ l: 50, r: 20, t: 60, b: 50 }},
+                    xaxis: {{ range: [0, 1], title: 'Xn', domain: [0, 1] }},
+                    yaxis: {{ range: [0, 1], title: 'Xn+1', domain: [0.55, 1] }},
+                    xaxis2: {{ range: [0, 100], title: 'Iteration', domain: [0, 1] }},
+                    yaxis2: {{ range: [0, 1], title: 'Xn', domain: [0, 0.45] }}
+                }}
+            }};
+            return fig;
+        }}
+
+        // Update plots
         function updatePlots(r_value) {{
             current_r = r_value;
-
-            // Update r value display
             document.getElementById('r-value').textContent = r_value.toFixed(2);
 
-            // Update cobweb plot
             const cobweb_key = r_value.toFixed(2);
             if (cobweb_data[cobweb_key]) {{
-                const cobweb_json = JSON.parse(cobweb_data[cobweb_key]);
-                Plotly.newPlot('cobweb-plot', cobweb_json.data, cobweb_json.layout, {{responsive: true}});
+                const data = cobweb_data[cobweb_key];
+                const fig = createCobwebFigure(data);
+                Plotly.newPlot('cobweb-plot', fig.data, fig.layout, {{responsive: true}});
             }}
 
-            // Update Feigenbaum with red line at current r
             const feig_json = JSON.parse(feigenbaum_json);
             feig_json.data.push({{
                 x: [r_value, r_value],
@@ -278,10 +338,52 @@ html_content = f"""<!DOCTYPE html>
             Plotly.newPlot('feigenbaum-plot', feig_json.data, feig_json.layout, {{responsive: true}});
         }}
 
-        // Initialize with default value
+        // Play animation
+        function playAnimation() {{
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const cobweb_key = current_r.toFixed(2);
+            if (!cobweb_data[cobweb_key]) return;
+
+            const data = cobweb_data[cobweb_key];
+            const maxSteps = Math.max(data.cobweb_x_red.length, data.cobweb_x_blue.length);
+            const step = Math.max(1, Math.floor(maxSteps / 50));
+            let frameIdx = 0;
+
+            const interval = setInterval(() => {{
+                frameIdx += step;
+                if (frameIdx >= maxSteps) {{
+                    clearInterval(interval);
+                    isAnimating = false;
+                    return;
+                }}
+
+                const seqIdx = Math.min(Math.floor(frameIdx / 3), data.sequence_red.length - 1);
+
+                Plotly.restyle('cobweb-plot', {{
+                    x: [
+                        undefined, undefined,
+                        data.cobweb_x_red.slice(0, frameIdx),
+                        data.cobweb_x_blue.slice(0, frameIdx),
+                        Array.from({{length: seqIdx + 1}}, (_, i) => i),
+                        Array.from({{length: seqIdx + 1}}, (_, i) => i)
+                    ],
+                    y: [
+                        undefined, undefined,
+                        data.cobweb_y_red.slice(0, frameIdx),
+                        data.cobweb_y_blue.slice(0, frameIdx),
+                        data.sequence_red.slice(0, seqIdx + 1),
+                        data.sequence_blue.slice(0, seqIdx + 1)
+                    ]
+                }}, [2, 3, 4, 5]);
+            }}, 200);
+        }}
+
+        // Initialize
         updatePlots(2.80);
 
-        // Slider event listener
+        // Slider listener
         document.getElementById('r-slider').addEventListener('input', function() {{
             const slider_value = parseFloat(this.value) / 100;
             updatePlots(slider_value);
