@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Feigenbaum Bifurcation Diagram</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        .layout {
+            display: flex;
+            gap: 20px;
+        }
+        .left-column {
+            width: 48%;
+            position: relative;
+        }
+        .right-column {
+            width: 50%;
+        }
+        #cobweb-plot, #feigenbaum-plot {
+            width: 100%;
+        }
+        .play-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+        }
+        .play-button:hover {
+            background: #45a049;
+        }
+        .play-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .slider-container {
+            padding: 0 30px 15px 30px;
+            box-sizing: border-box;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+        }
+        .value-display {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Logistische Gleichung: X<sub>n+1</sub> = r · X<sub>n</sub> · (1 - X<sub>n</sub>)</h2>
+
+        <div id="loading" class="loading">
+            Computing Feigenbaum diagram and cobweb plots... (this takes ~5 seconds)
+        </div>
+
+        <div id="content" style="display: none;">
+            <div class="layout">
+                <div class="left-column">
+                    <button class="play-button" id="play-btn" onclick="playAnimation()">Play</button>
+                    <div id="cobweb-plot"></div>
+                </div>
+
+                <div class="right-column">
+                    <div id="feigenbaum-plot"></div>
+                    <div class="slider-container">
+                        <label for="r-slider">Parameter r:</label>
+                        <input type="range" id="r-slider" min="0" max="400" step="1" value="280">
+                        <div class="value-display">r = <span id="r-value">2.80</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            r_min: 0.0,
+            r_max: 4.0,
+            r_steps: 500,
+            transient_iterations: 500,
+            attractor_points: 100,
+            cobweb_iterations: 100,
+            sequence_iterations: 100,
+            x_start_red: 0.05,
+            x_start_blue: 0.90,
+            animation_frame_duration: 200,
+            animation_steps: 50
+        };
+
+        let cobwebCache = {};
+        let feigenbaumData = null;
+        let isAnimating = false;
+        let currentR = 2.80;
+
+        // Logistic map function
+        function logisticMap(r, x) {
+            return r * x * (1 - x);
+        }
+
+        // Calculate Feigenbaum diagram
+        function calculateFeigenbaum() {
+            console.log('Calculating Feigenbaum diagram...');
+            const feig_x = [];
+            const feig_y = [];
+
+            const r_values = linspace(CONFIG.r_min, CONFIG.r_max, CONFIG.r_steps);
+
+            for (let r of r_values) {
+                let x = 0.1;
+                // Discard transient
+                for (let i = 0; i < CONFIG.transient_iterations; i++) {
+                    x = logisticMap(r, x);
+                }
+                // Collect attractor points
+                for (let i = 0; i < CONFIG.attractor_points; i++) {
+                    x = logisticMap(r, x);
+                    feig_x.push(r);
+                    feig_y.push(x);
+                }
+            }
+
+            return { x: feig_x, y: feig_y };
+        }
+
+        // Calculate cobweb for a specific r value
+        function calculateCobweb(r) {
+            const key = r.toFixed(2);
+
+            // Check cache
+            if (cobwebCache[key]) {
+                return cobwebCache[key];
+            }
+
+            // Parabola
+            const x_vals = linspace(0, 1, 100);
+            const y_vals = x_vals.map(x => logisticMap(r, x));
+
+            // Red spiral (start 0.05)
+            const cobweb_red = calculateSpiral(r, CONFIG.x_start_red, CONFIG.cobweb_iterations);
+
+            // Blue spiral (start 0.90)
+            const cobweb_blue = calculateSpiral(r, CONFIG.x_start_blue, CONFIG.cobweb_iterations);
+
+            // Red sequence
+            const seq_red = calculateSequence(r, CONFIG.x_start_red, CONFIG.sequence_iterations);
+
+            // Blue sequence
+            const seq_blue = calculateSequence(r, CONFIG.x_start_blue, CONFIG.sequence_iterations);
+
+            const result = {
+                x_func: x_vals,
+                y_func: y_vals,
+                cobweb_red: cobweb_red,
+                cobweb_blue: cobweb_blue,
+                seq_red: seq_red,
+                seq_blue: seq_blue
+            };
+
+            cobwebCache[key] = result;
+            return result;
+        }
+
+        // Calculate spiral coordinates (cobweb)
+        function calculateSpiral(r, x_start, iterations) {
+            const x_coords = [];
+            const y_coords = [];
+            let current_x = x_start;
+
+            for (let i = 0; i < iterations; i++) {
+                const next_x = logisticMap(r, current_x);
+                x_coords.push(current_x, current_x, next_x);
+                y_coords.push(current_x, next_x, next_x);
+                current_x = next_x;
+            }
+
+            return { x: x_coords, y: y_coords };
+        }
+
+        // Calculate sequence values
+        function calculateSequence(r, x_start, iterations) {
+            const values = [];
+            let current_x = x_start;
+
+            values.push(current_x);
+            for (let i = 0; i < iterations; i++) {
+                current_x = logisticMap(r, current_x);
+                values.push(current_x);
+            }
+
+            return values;
+        }
+
+        // Helper: create linspace
+        function linspace(start, end, count) {
+            const result = [];
+            const step = (end - start) / (count - 1);
+            for (let i = 0; i < count; i++) {
+                result.push(start + step * i);
+            }
+            return result;
+        }
+
+        // Create cobweb figure
+        function createCobwebFigure(data) {
+            const indices_red = Array.from({length: data.seq_red.length}, (_, i) => i);
+            const indices_blue = Array.from({length: data.seq_blue.length}, (_, i) => i);
+
+            return {
+                data: [
+                    {
+                        x: data.x_func,
+                        y: data.y_func,
+                        mode: 'lines',
+                        name: 'f(x) = r*x(1-x)',
+                        line: { color: 'green' },
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: [0, 1],
+                        y: [0, 1],
+                        mode: 'lines',
+                        name: 'y = x',
+                        line: { color: 'black', dash: 'dash' },
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: data.cobweb_red.x,
+                        y: data.cobweb_red.y,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.05',
+                        line: { color: 'red', width: 1 },
+                        marker: { size: 4 },
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: data.cobweb_blue.x,
+                        y: data.cobweb_blue.y,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.90',
+                        line: { color: 'blue', width: 1 },
+                        marker: { size: 4 },
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: indices_red,
+                        y: data.seq_red,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.05',
+                        line: { color: 'red', width: 2 },
+                        marker: { size: 3 },
+                        showlegend: false,
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    },
+                    {
+                        x: indices_blue,
+                        y: data.seq_blue,
+                        mode: 'lines+markers',
+                        name: 'Start: 0.90',
+                        line: { color: 'blue', width: 2 },
+                        marker: { size: 3 },
+                        showlegend: false,
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    }
+                ],
+                layout: {
+                    template: 'plotly_white',
+                    height: 700,
+                    showlegend: true,
+                    margin: { l: 50, r: 20, t: 60, b: 50 },
+                    xaxis: { range: [0, 1], title: 'Xn', domain: [0, 1] },
+                    yaxis: { range: [0, 1], title: 'Xn+1', domain: [0.55, 1] },
+                    xaxis2: { range: [0, 100], title: 'Iteration', domain: [0, 1] },
+                    yaxis2: { range: [0, 1], title: 'Xn', domain: [0, 0.45] }
+                }
+            };
+        }
+
+        // Create Feigenbaum figure
+        function createFeigenbaumFigure(r_value) {
+            return {
+                data: [
+                    {
+                        x: feigenbaumData.x,
+                        y: feigenbaumData.y,
+                        mode: 'markers',
+                        name: 'Feigenbaum',
+                        marker: { size: 2, color: 'steelblue' },
+                        showlegend: false
+                    },
+                    {
+                        x: [r_value, r_value],
+                        y: [0, 1],
+                        mode: 'lines',
+                        name: 'Aktuelles r',
+                        line: { color: 'red', width: 2, dash: 'dash' },
+                        showlegend: false
+                    }
+                ],
+                layout: {
+                    template: 'plotly_white',
+                    height: 700,
+                    margin: { l: 80, r: 80, t: 40, b: 50 },
+                    xaxis: { range: [0.0, 4.0], title: 'r' },
+                    yaxis: { range: [0, 1], title: 'Attraktor' },
+                    showlegend: false
+                }
+            };
+        }
+
+        // Update plots
+        function updatePlots(r_value) {
+            currentR = r_value;
+            document.getElementById('r-value').textContent = r_value.toFixed(2);
+
+            const cobweb = calculateCobweb(r_value);
+            const fig = createCobwebFigure(cobweb);
+            Plotly.newPlot('cobweb-plot', fig.data, fig.layout, { responsive: true });
+
+            const feig_fig = createFeigenbaumFigure(r_value);
+            Plotly.newPlot('feigenbaum-plot', feig_fig.data, feig_fig.layout, { responsive: true });
+        }
+
+        // Play animation
+        function playAnimation() {
+            if (isAnimating) return;
+            isAnimating = true;
+            document.getElementById('play-btn').disabled = true;
+
+            const cobweb = calculateCobweb(currentR);
+            const maxSteps = Math.max(cobweb.cobweb_red.x.length, cobweb.cobweb_blue.x.length);
+            const step = Math.max(1, Math.floor(maxSteps / CONFIG.animation_steps));
+            let frameIdx = 0;
+
+            const interval = setInterval(() => {
+                frameIdx += step;
+                if (frameIdx >= maxSteps) {
+                    clearInterval(interval);
+                    isAnimating = false;
+                    document.getElementById('play-btn').disabled = false;
+                    return;
+                }
+
+                const seqIdx = Math.min(Math.floor(frameIdx / 3), cobweb.seq_red.length - 1);
+                const indices_red = Array.from({length: seqIdx + 1}, (_, i) => i);
+                const indices_blue = Array.from({length: seqIdx + 1}, (_, i) => i);
+
+                Plotly.restyle('cobweb-plot', {
+                    x: [
+                        undefined, undefined,
+                        cobweb.cobweb_red.x.slice(0, frameIdx),
+                        cobweb.cobweb_blue.x.slice(0, frameIdx),
+                        indices_red,
+                        indices_blue
+                    ],
+                    y: [
+                        undefined, undefined,
+                        cobweb.cobweb_red.y.slice(0, frameIdx),
+                        cobweb.cobweb_blue.y.slice(0, frameIdx),
+                        cobweb.seq_red.slice(0, seqIdx + 1),
+                        cobweb.seq_blue.slice(0, seqIdx + 1)
+                    ]
+                }, [2, 3, 4, 5]);
+            }, CONFIG.animation_frame_duration);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('Starting computation...');
+
+            // Calculate Feigenbaum
+            feigenbaumData = calculateFeigenbaum();
+            console.log(`Feigenbaum calculated: ${feigenbaumData.x.length} points`);
+
+            // Pre-calculate some cobweb values to warm up cache
+            console.log('Pre-calculating cobweb plots...');
+            const r_values = linspace(CONFIG.r_min, CONFIG.r_max, 41);
+            for (let r of r_values) {
+                calculateCobweb(r);
+            }
+
+            // Show content and initialize
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            updatePlots(2.80);
+
+            // Slider listener
+            document.getElementById('r-slider').addEventListener('input', function() {
+                const slider_value = parseFloat(this.value) / 100;
+                updatePlots(slider_value);
+            });
+
+            console.log('Ready!');
+        });
+    </script>
+</body>
+</html>
