@@ -411,14 +411,12 @@
 
                 Plotly.restyle('cobweb-plot', {
                     x: [
-                        undefined, undefined,
                         cobweb.cobweb_red.x.slice(0, frameIdx),
                         cobweb.cobweb_blue.x.slice(0, frameIdx),
                         indices_red,
                         indices_blue
                     ],
                     y: [
-                        undefined, undefined,
                         cobweb.cobweb_red.y.slice(0, frameIdx),
                         cobweb.cobweb_blue.y.slice(0, frameIdx),
                         cobweb.seq_red.slice(0, seqIdx + 1),
