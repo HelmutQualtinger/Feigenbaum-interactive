@@ -505,11 +505,11 @@
                     template: 'plotly_white',
                     height: 480,
                     showlegend: true,
-                    margin: { l: 40, r: 15, t: 40, b: 40 },
-                    xaxis: { range: [0, 1], title: 'Xn', domain: [0, 1], titlefont: { size: 10 } },
-                    yaxis: { range: [0, 1], title: 'Xn+1', domain: [0.55, 1], titlefont: { size: 10 } },
-                    xaxis2: { range: [0, 100], title: 'Iteration', domain: [0, 1], titlefont: { size: 10 } },
-                    yaxis2: { range: [0, 1], title: 'Xn', domain: [0, 0.45], titlefont: { size: 10 } }
+                    margin: { l: 40, r: 15, t: 40, b: 50 },
+                    xaxis: { range: [0, 1], title: 'Xn', domain: [0, 1], titlefont: { size: 10 }, anchor: 'y' },
+                    yaxis: { range: [0, 1], title: 'Xn+1', domain: [0.55, 1], titlefont: { size: 10 }, anchor: 'x' },
+                    xaxis2: { range: [0, 100], title: 'Iteration', domain: [0, 1], titlefont: { size: 10 }, anchor: 'y2' },
+                    yaxis2: { range: [0, 1], title: 'Xn', domain: [0, 0.45], titlefont: { size: 10 }, anchor: 'x2' }
                 }
             };
         }
